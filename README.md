@@ -8,14 +8,14 @@
 
 [Full solution on Oliwier's GitHub](https://github.com/OliwierWijas/TaskApplication?fbclid=IwAR3aiqjNFYGZf-Q1nbApb4oN9YB61smzZpt6K-nhDzvdFzin-mlowyAWer4)
 
-<p>The exercise consists of 15 steps. Let's get started.</p>
+<p>The exercise consists of 8 steps. Let's get started.</p>
 
 ## Exercise
 <p>Below is a UML of the classes needed. Please note the UML diagram may not be complete, and you're welcome to add to it as needed.</p>
 
-#### <span style="color: green;"> Before starting make sure that you have completed the previous learning path, that can be found [here](https://github.com/OliwierWijas/OliwierWijas.github.io/blob/main/Workshops2.md)
+![image](https://github.com/DominikaJanczyszyn/SocketsAndBroadcast.github.io/blob/main/workshops.svg)
 
-#### Also remember that even though we give you the full implementation of the needed classes, you can still ask questions if something is unclear to you, especially about the new topics including: the Observer pattern, the State pattern, and the MVVM pattern.
+### **Before starting make sure that you have completed the previous learning path, that can be found [here](https://github.com/OliwierWijas/OliwierWijas.github.io/blob/main/Workshops2.md)**
 
 ### Step 1 - Adding Json to Maven
 
@@ -77,8 +77,8 @@ public class Broadcaster {
   <li><code>addTask(Task task)</code>: Adds a new task to the list.</li>
   <li><code>startTask(Task task)</code>: Marks a task as in-progress.</li>
   <li><code>finishTask(Task task)</code>: Marks a task as done.</li>
+  <li> <code>getTasks()</code>: Retrieve all the tasks in the system.</li>
 </ul>
-<p>We'll also implement a method called <code>getTasks()</code> to retrieve all the tasks in the system.</p>
 <p>All methods in SharedArrayList should be synchronized to allow multiple clients to access them simultaneously without causing errors.</p>
 <p>Additionally, we'll design SharedArrayList as a singleton class to ensure there is only one instance throughout the system, maintaining data consistency.</p>
 <p>Try to program it yourself before looking at the solution!</p>
@@ -313,7 +313,7 @@ public interface Client extends Closeable {
 
 #### Step 6.2 - Implementing the ClientImpl Class
 <p>Now, let's implement the <code>ClientImpl</code> class:</p>
-<p>When implementing the Client constructor and methods, follow Ole's instructions provided in the class diagram.</p>
+<p>When implementing the Client constructor and methods, follow Ole's instructions and provided class diagram.</p>
 <p>To send objects to server use JSON.</p>
 
 <blockquote>
@@ -518,7 +518,7 @@ public class ModelManager implements Model, PropertyChangeListener{
 </details>
 </blockquote>
 
-##Now your application is ready!
+## Now your application is ready!
 <p>To test it, start the server first. Then, run multiple clients and observe if the tasks change for each client.</p>
 
 
