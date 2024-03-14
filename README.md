@@ -31,8 +31,10 @@
 </dependency>
 
 ```
-###Step 2 - The Braodcaster Class
-<p>Implement the Broadcaster class from the class diagram. Follow the instuction that Ole gave you when implementing the broadcast(String message) method.</p>
+
+### Step 2 - The Broadcaster Class
+
+<p>Implement the Broadcaster class from the class diagram. Follow the instruction that Ole gave you when implementing the broadcast(String message) method.</p>
 
 <blockquote>
 <details>
@@ -44,13 +46,11 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
-public class Broadcaster
-{
+public class Broadcaster {
   private final InetAddress group;
   private final int port;
 
-  public Broadcaster(String groupAddress, int port) throws IOException
-  {
+  public Broadcaster(String groupAddress, int port) throws IOException {
     this.group = InetAddress.getByName(groupAddress);
     this.port = port;
   }
@@ -66,6 +66,80 @@ public class Broadcaster
 ```
 </details>
 </blockquote>
+
+### Step 3 - Implementing the SharedArrayList Class
+
+<p>In this step, we'll implement the SharedArrayList class, which will manage all the relevant data about tasks in the system.</p>
+<p>To ensure accessibility by our server and consistent data management, we'll create the SharedArrayList class.</p>
+<p>This class should contain an ArrayList to store all the tasks and methods to facilitate data manipulation.</p>
+<p>First, let's include methods from the ModelManager class that are relevant to task management:</p>
+<ul>
+  <li><code>addTask(Task task)</code>: Adds a new task to the list.</li>
+  <li><code>startTask(Task task)</code>: Marks a task as in-progress.</li>
+  <li><code>finishTask(Task task)</code>: Marks a task as done.</li>
+</ul>
+<p>We'll also implement a method called <code>getTasks()</code> to retrieve all the tasks in the system.</p>
+<p>All methods in SharedArrayList should be synchronized to allow multiple clients to access them simultaneously without causing errors.</p>
+<p>Additionally, we'll design SharedArrayList as a singleton class to ensure there is only one instance throughout the system, maintaining data consistency.</p>
+<p>Try to program it yourself before looking at the solution!</p>
+
+<blockquote>
+<details>
+<summary>Display solution for the SharedArrayList class</summary>
+      
+```java
+public class SharedArrayList
+{
+  private ArrayList<Task> tasks;
+  private static SharedArrayList instance;
+
+  private SharedArrayList() {
+    this.tasks = new ArrayList<>();
+  }
+
+  public static synchronized SharedArrayList getInstance() {
+    if (instance == null) {
+      instance = new SharedArrayList();
+    }
+    return instance;
+  }
+
+  public synchronized ArrayList<Task> getTasks()
+  {
+    return tasks;
+  }
+
+  public synchronized void addTask(Task task) {
+    this.tasks.add(task);
+  }
+
+  public synchronized void startTask(Task task) {
+    for (int i = 0; i < tasks.size(); i++)
+    {
+      if (tasks.get(i).equals(task)) {
+        tasks.get(i).startTask();
+        break;
+      }
+    }
+  }
+
+  public synchronized void finishTask(Task task) {
+    for (int i = 0; i < tasks.size(); i++)
+    {
+      if (tasks.get(i).equals(task)) {
+        tasks.get(i).finishTask();
+        break;
+      }
+    }
+  }
+}
+```
+</details>
+</blockquote>
+
+
+
+
 
 
 
