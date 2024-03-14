@@ -285,8 +285,241 @@ public class ServerStart {
 </details>
 </blockquote>
 
+### Step 6 - Implementing the Client Interface and ClientImpl Class
 
+<p>Now that we've completed the server side of our application, let's move on to the client side.</p>
 
+#### Step 6.1 - Implementing the Client Interface
+
+<p>Firstly, let's implement the <code>Client</code> interface from the class diagram:</p>
+
+<blockquote>
+<details>
+<summary>Display solution for the Client Interface</summary>
+      
+```java
+public interface Client extends Closeable {
+  ArrayList<Task> getTasks() throws IOException;
+  void startTask(Task task);
+  void finishTask(Task task);
+  void addTask(Task task);
+  void addPropertyChangeListener(PropertyChangeListener listener);
+  void removePropertyChangeListener(PropertyChangeListener listener);
+}
+```
+</details>
+</blockquote>
+<p>The methods in the Client interface should correspond with methods in <code>the Communicator class</code>, as the Client will be sending requests to that class.</p>
+
+#### Step 6.2 - Implementing the ClientImpl Class
+<p>Now, let's implement the <code>ClientImpl</code> class:</p>
+<p>When implementing the Client constructor and methods, follow Ole's instructions provided in the class diagram.</p>
+<p>To send objects to server use JSON.</p>
+
+<blockquote>
+<details>
+<summary>Display solution for the ClientImpl class</summary>
+      
+```java
+public class ClientImpl implements Client {
+  private final Socket socket;
+  private final PrintWriter output;
+  private final BufferedReader input;
+  private final MessageListener listener;
+  private final PropertyChangeSupport support;
+  private final Gson gson;
+
+  private final static String GET = "GET";
+  private final static String ADD = "ADD";
+  private final static String START = "START";
+  private final static String FINISH = "FINISH";
+  private final static String EXIT = "EXIT";
+
+  public ClientImpl(String host, int port, String groupAddress, int groupPort) throws IOException {
+    this.socket = new Socket(host, port);
+    this.output = new PrintWriter(socket.getOutputStream());
+    this.input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    this.support = new PropertyChangeSupport(this);
+    this.gson = new GsonBuilder().registerTypeAdapter(State.class, new StateInterfaceAdapter()).create();
+
+    this.listener = new MessageListener(this, groupAddress, groupPort);
+    Thread thread = new Thread(listener);
+    thread.start();
+  }
+
+  @Override public ArrayList<Task> getTasks() throws IOException {
+    output.println(GET);
+    output.flush();
+    ArrayList<Task> tasks = gson.fromJson(input.readLine(), new TypeToken<ArrayList<Task>>() {}.getType());
+    return tasks;
+  }
+
+  @Override public void startTask(Task task) {
+    output.println(START);
+    output.println(gson.toJson(task));
+    output.flush();
+  }
+
+  @Override public void finishTask(Task task) {
+    output.println(FINISH);
+    output.println(gson.toJson(task));
+    output.flush();
+  }
+
+  @Override public void addTask(Task task) {
+    output.println(ADD);
+    output.println(gson.toJson(task));
+    output.flush();
+  }
+
+  @Override public void addPropertyChangeListener(PropertyChangeListener listener) {
+    this.support.addPropertyChangeListener(listener);
+  }
+
+  @Override public void removePropertyChangeListener(PropertyChangeListener listener) {
+    this.support.removePropertyChangeListener(listener);
+  }
+
+  public void receiveBroadcast(String message) {
+    ArrayList<Task> update = gson.fromJson(message, new TypeToken<ArrayList<Task>>() {}.getType());
+    support.firePropertyChange("List", null, update);
+  }
+
+  @Override public void close() throws IOException {
+    listener.close();
+    output.println(EXIT);
+    output.flush();
+    socket.close();
+  }
+}
+```
+</details>
+</blockquote>
+
+### Step 7 - The MessageListener class
+<p>While the Client is sending requests to the server, we need a class that would listen to incomming messages from the server. In our case that class will be called <code>the MessageListener class</code></p>
+<p> <code>The MessageListener class</code> listens to multicast messages from the server and forwards them to the client for processing.</p>
+<p>The constructor initializes the necessary components for multicast communication, including the <code>MulticastSocket</code>, <code>InetSocketAddress</code>, and <code>NetworkInterface</code>.</p>
+<p>The <code>listen()</code> method continuously listens for incoming multicast messages. When a message is received, it is forwarded to the client for processing.</p>
+<p>The <code>close()</code> method is responsible for leaving the multicast group and closing the multicast socket properly.</p>
+<p>Implement the class based on the class diagram and Ole's presentations.</p>
+
+<blockquote>
+<details>
+<summary>Display solution for the MessageListener class</summary>
+      
+```java
+public class MessageListener implements Runnable
+{
+  private final ClientImpl client;
+  private final MulticastSocket multicastSocket;
+  private final InetSocketAddress socketAddress;
+  private final NetworkInterface networkInterface;
+
+  public MessageListener(ClientImpl client, String groupAddress, int port) throws IOException {
+    this.client = client;
+    multicastSocket = new MulticastSocket(port);
+    InetAddress group = InetAddress.getByName(groupAddress);
+    socketAddress = new InetSocketAddress(group, port);
+    networkInterface = NetworkInterface.getByInetAddress(group);
+  }
+
+  private void listen() throws IOException {
+    multicastSocket.joinGroup(socketAddress, networkInterface);
+    try {
+      byte[] content = new byte[32768];
+      while (true) {
+        DatagramPacket packet = new DatagramPacket(content, content.length);
+        multicastSocket.receive(packet);
+        String message = new String(packet.getData(), 0, packet.getLength());
+        client.receiveBroadcast(message);
+      }
+    } catch (SocketException e) {
+      if (!((e.getCause()) instanceof AsynchronousCloseException)) throw e;
+    }
+  }
+
+  public void close() throws IOException {
+    multicastSocket.leaveGroup(socketAddress, networkInterface);
+    multicastSocket.close();
+  }
+
+  @Override public void run()
+  {
+    try {
+      listen();
+    }
+    catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+}
+```
+</details>
+</blockquote>
+
+### Step 8 - modify the ModelManager Class
+<p>To adapt the application from single-user to client/server architecture, the <code>ModelManager</code> class should forward functions to the client side of the system instead of altering its internal logic.</p>
+<p>To achieve this, use a <code>Client</code> object to delegate each method call to the client side.</p>
+
+<blockquote>
+<details>
+<summary>Display solution for the ModelManager class</summary>
+      
+```java
+public class ModelManager implements Model, PropertyChangeListener{
+    private final Client client;
+    private final PropertyChangeSupport support;
+    public ModelManager(Client client){
+        this.client = client;
+        this.client.addPropertyChangeListener(this);
+        this.support = new PropertyChangeSupport(this);
+    }
+
+    @Override public ArrayList<Task> getTasks() throws IOException
+    {
+        return client.getTasks();
+    }
+
+    @Override
+    public synchronized void startTask(Task task) {
+        client.startTask(task);
+    }
+
+    @Override
+    public synchronized void finishTask(Task task) {
+        client.finishTask(task);
+    }
+
+    @Override
+    public synchronized void addTask(Task task) {
+        client.addTask(task);
+    }
+    @Override
+    public void addPropertyChangeListener(PropertyChangeListener listener) {
+        support.addPropertyChangeListener(listener);
+    }
+
+    @Override
+    public void removePropertyChangeListener(PropertyChangeListener listener) {
+        support.removePropertyChangeListener(listener);
+    }
+
+    @Override public void propertyChange(PropertyChangeEvent evt)
+    {
+        Platform.runLater(() -> {
+            if (evt.getPropertyName().equals("List")) {
+                this.support.firePropertyChange("List", null, evt.getNewValue());
+            }
+        });
+    }
+}
+```
+</details>
+</blockquote>
+
+##Now your application is ready!
+<p>To test it, start the server first. Then, run multiple clients and observe if the tasks change for each client.</p>
 
 
 
