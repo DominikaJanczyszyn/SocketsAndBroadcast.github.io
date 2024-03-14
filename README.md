@@ -13,9 +13,9 @@
 ## Exercise
 <p>Below is a UML of the classes needed. Please note the UML diagram may not be complete, and you're welcome to add to it as needed.</p>
 
-##### Before starting make sure that you have completed the previous learning path, that can be found [here](https://github.com/OliwierWijas/OliwierWijas.github.io/blob/main/Workshops2.md)
+#### <span style="color: green;"> Before starting make sure that you have completed the previous learning path, that can be found [here](https://github.com/OliwierWijas/OliwierWijas.github.io/blob/main/Workshops2.md)
 
-##### Also remember that even though we give you the full implementation of the needed classes, you can still ask questions if something is unclear to you, especially about the new topics including: the Observer pattern, the State pattern, and the MVVM pattern.
+#### Also remember that even though we give you the full implementation of the needed classes, you can still ask questions if something is unclear to you, especially about the new topics including: the Observer pattern, the State pattern, and the MVVM pattern.
 
 ### Step 1 - Adding Json to Maven
 
@@ -33,8 +33,8 @@
 ```
 
 ### Step 2 - The Broadcaster Class
-
-<p>Implement the Broadcaster class from the class diagram. Follow the instruction that Ole gave you when implementing the broadcast(String message) method.</p>
+<p>In our system we need a class that will be sending packages to all of clients. In that excercise that class will be called - <code>The Broadcaster class</code>
+<p>Implement <code>The Broadcaster class</code> from the class diagram. Follow the instruction that Ole gave you when implementing the <code>broadcast(String message)</code> method.</p>
 
 <blockquote>
 <details>
@@ -136,6 +136,155 @@ public class SharedArrayList
 ```
 </details>
 </blockquote>
+
+### Step 4 - Implementing the Communicator Class
+
+<p>Now that we have a class responsible for sending packages - <code>The Broadcaster class</code> and a class responsible for storing the data - <code>The SharedArrayList class</code>, we can move on to the class that will be listening for incoming messages (packets) from the clients.</p>
+
+<p>We will call it <code>The Communicator class</code>.</p>
+
+<p>First of all, we should think about names for our messages (protocols) that will indicate which action the Server should perform.</p>
+
+<p>We can determine the names by looking at the methods that could be performed within the system. For example:</p>
+
+<ul>
+  <li><code>ADD</code>: Adds a new task to the list.</li>
+  <li><code>START</code>: Marks a task as in-progress.</li>
+  <li><code>FINISH</code>: Marks a task as done.</li>
+  <li><code>GET</code>: Retrieve all the tasks in the system.</li>
+  <li><code>EXIT</code>: Disconnect the user from the server.</li>
+</ul>
+
+<p>The Communicator should listen to incoming messages in a <code>while(true)</code> loop. When it 'hears' one of the first four messages, it should use JSON to send or retrieve task objects from <code>the SharedArrayList class</code> and use <code>the Broadcaster class</code> to send a response. In case of the last message, it should simply break from the loop, indicating the end of the listening process.</p>
+
+<p>While coding, try to implement it yourself using the instructions provided by us and Ole. Refer to the solution only if needed.</p>
+
+<blockquote>
+<details>
+<summary>Display solution for the Communicator class</summary>
+      
+```java
+public class Communicator implements Runnable {
+  private final Socket socket;
+  private final Broadcaster broadcaster;
+  private final Gson gson;
+  private final SharedArrayList sharedArrayList;
+
+  private final static String GET = "GET";
+  private final static String ADD = "ADD";
+  private final static String START = "START";
+  private final static String FINISH = "FINISH";
+  private final static String EXIT = "EXIT";
+
+  public Communicator(Socket socket, Broadcaster broadcaster) {
+    this.socket = socket;
+    this.broadcaster = broadcaster;
+    this.gson = new GsonBuilder().registerTypeAdapter(State.class, new StateInterfaceAdapter()).create();
+    this.sharedArrayList = SharedArrayList.getInstance();
+  }
+
+  private synchronized void communicate() throws IOException {
+    try {
+      InputStream inputStream = socket.getInputStream();
+      BufferedReader input = new BufferedReader(new InputStreamReader(inputStream));
+      OutputStream outputStream = socket.getOutputStream();
+      PrintWriter output = new PrintWriter(outputStream);
+
+      loop: while (true) {
+        String jsonRequest = input.readLine();
+        switch (jsonRequest) {
+          case GET: {
+            output.println(gson.toJson(sharedArrayList.getTasks()));
+            output.flush();
+            System.out.println(socket.getLocalAddress() + ": Tasks arrayList request.");
+            break;
+          }
+          case ADD: {
+            String message = input.readLine();
+            Task task = gson.fromJson(message, Task.class);
+            sharedArrayList.addTask(task);
+            System.out.println(socket.getLocalAddress() + ": Adding task request.");
+            broadcaster.broadcast(gson.toJson(sharedArrayList.getTasks()));
+            break;
+          }
+          case START: {
+            String message = input.readLine();
+            Task task = gson.fromJson(message, Task.class);
+            sharedArrayList.startTask(task);
+            System.out.println(socket.getLocalAddress() + ": Starting task request.");
+            broadcaster.broadcast(gson.toJson(sharedArrayList.getTasks()));
+            break;
+          }
+          case FINISH: {
+            String message = input.readLine();
+            Task task = gson.fromJson(message, Task.class);
+            sharedArrayList.finishTask(task);
+            System.out.println(socket.getLocalAddress() + ": Finishing task request.");
+            broadcaster.broadcast(gson.toJson(sharedArrayList.getTasks()));
+            break;
+          }
+          case EXIT: {
+            System.out.println(socket.getLocalAddress() + ": Exiting request.");
+            break loop;
+          }
+        }
+      }
+    }
+    finally {
+      socket.close();
+    }
+  }
+
+  @Override public void run() {
+    try {
+      communicate();
+    }
+    catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+}
+```
+</details>
+</blockquote>
+
+### Step 5 - Implementing the ServerStart Class
+
+<p>We have implemented all the essential functionalities within the server domain. Now, let's implement the class responsible for starting the server - <code>ServerStart</code>.</p>
+
+<p>To start the server, we need to:</p>
+
+1. Create a ServerSocket with a specified port.
+2. Create a Broadcaster object with a specified address. Note that you can use any address between 224.0.0.0 - 239.255.255.255, and any port between 1024 - 9999.
+3. Create a Communicator object for handling client communication.
+4. Start a new thread to handle client communication.
+
+<blockquote>
+<details>
+<summary>Display solution for the ServerStart class</summary>
+      
+```java
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class ServerStart {
+  public static void main(String[] args) throws IOException {
+    ServerSocket serverSocket = new ServerSocket(8080);
+    Broadcaster broadcaster = new Broadcaster("230.0.0.0", 8888);
+    while (true) {
+      System.out.println("Server ready for input.");
+      Socket socket = serverSocket.accept();
+      Communicator communicator = new Communicator(socket, broadcaster);
+      Thread communicatorThread = new Thread(communicator);
+      communicatorThread.start();
+    }
+  }
+}
+```
+</details>
+</blockquote>
+
 
 
 
