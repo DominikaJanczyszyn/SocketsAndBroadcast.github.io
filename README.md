@@ -10,4 +10,5 @@
 [Full solution on Oliwier's github](https://github.com/OliwierWijas/TaskApplication?fbclid=IwAR3aiqjNFYGZf-Q1nbApb4oN9YB61smzZpt6K-nhDzvdFzin-mlowyAWer4)
 
 <p>The exercise consists of 15 steps. Let's get started.</p>
+
 ## Exercise
